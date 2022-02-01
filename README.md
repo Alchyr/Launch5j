@@ -167,6 +167,11 @@ Some options can be configured via the launcher executable's [STRINGTABLE](https
 
   (This option only applies to the “registry” variant of Launch5j)
 
+* **`ID_STR_JARPATH` (#10)**  
+  Added in this fork.
+  The path+filename of the jar file to run relative to the exe. If not specified, will use the previously defined logic to find the jar file to run.
+  ex. if jar is in a folder called `folder` and titled `program.jar`, the correct value would be `folder//program.jar`.
+  
 *Note:* We use the convention that the default resource string value `"?"` is used to represent an “undefined” value, because resource strings cannot be empty. You can replace the default value as needed!
 
 
