@@ -40,5 +40,6 @@
 #define ID_STR_JAVAMAX 7
 #define ID_STR_BITNESS 8
 #define ID_STR_JAVAURL 9
+#define ID_STR_JARPATH 10
 
 #endif

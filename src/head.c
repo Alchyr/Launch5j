@@ -711,29 +711,40 @@ static const wchar_t *get_executable_directory(const wchar_t *const executable_p
     return wcsdup(L".");
 }
 
-static const wchar_t *get_jarfile_path(const wchar_t *const executable_path, const wchar_t *const executable_directory)
+static const wchar_t *get_jarfile_path(const HINSTANCE hinstance, const wchar_t *const executable_path, const wchar_t *const executable_directory)
 {
 #if L5J_JAR_FILE_WRAPPED
     return wcsdup(executable_path); /*JAR file is wrapped*/
 #else
-    const wchar_t *jarfile_path = NULL;
+    const wchar_t* jarfile_path = NULL;
+    const wchar_t* const custom_jar_path = load_string(hinstance, ID_STR_JARPATH);
 
-    const wchar_t *const path_prefix = get_path_without_suffix(executable_path);
-    if (NOT_EMPTY(path_prefix))
+    if (AVAILABLE(custom_jar_path))
     {
-        const size_t len = wcslen(path_prefix);
-        if (!((len > 0U) && ((path_prefix[len-1U] == L'\\') || (path_prefix[len-1U] == L'/'))))
+        jarfile_path = NOT_EMPTY(executable_directory) ? aswprintf(L"%s\\%s", executable_directory, custom_jar_path) : wcsdup(custom_jar_path);
+    }
+    else
+    {
+        const wchar_t* const path_prefix = get_path_without_suffix(executable_path);
+        if (NOT_EMPTY(path_prefix))
         {
-            jarfile_path = aswprintf(L"%s.jar", path_prefix);
+            const size_t len = wcslen(path_prefix);
+            if (!((len > 0U) && ((path_prefix[len - 1U] == L'\\') || (path_prefix[len - 1U] == L'/'))))
+            {
+                jarfile_path = aswprintf(L"%s.jar", path_prefix);
+            }
         }
+
+        if (!jarfile_path)
+        {
+            jarfile_path = NOT_EMPTY(executable_directory) ? aswprintf(L"%s\\%s", executable_directory, DEFAULT_JARFILE_NAME) : wcsdup(DEFAULT_JARFILE_NAME);
+        }
+
+        free((void*)path_prefix);
     }
 
-    if (!jarfile_path)
-    {
-        jarfile_path = NOT_EMPTY(executable_directory) ? aswprintf(L"%s\\%s", executable_directory, DEFAULT_JARFILE_NAME) : wcsdup(DEFAULT_JARFILE_NAME);
-    }
+    free((void*)custom_jar_path);
 
-    free((void*)path_prefix);
     return jarfile_path;
 #endif
 }
@@ -1537,8 +1548,8 @@ static wchar_t *const DEFAULT_HEADING = L"Launch5j";
 static int launch5j_main(const HINSTANCE hinstance, const wchar_t *const cmd_line_args)
 {
     int result = -1;
-    const wchar_t *app_heading = NULL, *mutex_name = NULL, *executable_path = NULL, *executable_directory = NULL, *jarfile_path = NULL,
-        *java_runtime_path = NULL, *jre_relative_path = NULL, *jvm_extra_args = NULL, *cmd_extra_args = NULL, *command_line = NULL;
+    const wchar_t* app_heading = NULL, * mutex_name = NULL, * executable_path = NULL, * executable_directory = NULL, * jarfile_path = NULL,
+        * java_runtime_path = NULL, * jre_relative_path = NULL, * jvm_extra_args = NULL, * cmd_extra_args = NULL, * command_line = NULL;
     HANDLE mutex_handle = NULL;
     DWORD java_required_bitness = 0U;
     ULONGLONG java_required_ver_min = 0ULL, java_required_ver_max = 0ULL;
@@ -1569,11 +1580,6 @@ static int launch5j_main(const HINSTANCE hinstance, const wchar_t *const cmd_lin
     if (starts_with(cmd_line_args, L"--l5j-about"))
     {
         show_about_dialogue(hwnd);
-        return 0;
-    }
-    if (starts_with(cmd_line_args, L"--l5j-slunk"))
-    {
-        enable_slunk_mode(hwnd);
         return 0;
     }
 
@@ -1627,7 +1633,7 @@ static int launch5j_main(const HINSTANCE hinstance, const wchar_t *const cmd_lin
     }
 
     // Find the JAR file path
-    if (!(jarfile_path = get_jarfile_path(executable_path, executable_directory)))
+    if (!(jarfile_path = get_jarfile_path(hinstance, executable_path, executable_directory)))
     {
         show_message(hwnd, MB_ICONERROR | MB_TOPMOST, APP_HEADING, L"The path of the JAR file could not be determined!");
         goto cleanup;
@@ -1759,18 +1765,16 @@ cleanup:
 /* Entry points                                                             */
 /* ======================================================================== */
 
-#define THE_NUMBER_OF_THE_BEAST 666
-
 static LONG WINAPI unhandeled_exception(EXCEPTION_POINTERS *ExceptionInfo)
 {
-    static const wchar_t *const ERROR_MESSAGE = L"\nUnhandeled exception error encountered. Exiting!";
+    static const wchar_t *const ERROR_MESSAGE = L"\nUnhandled exception error encountered. Exiting!";
 #if L5J_ENABLE_GUI
     FatalAppExitW(0U, ERROR_MESSAGE);
 #else
     DWORD chars_written;
     WriteConsoleW(GetStdHandle(STD_ERROR_HANDLE), ERROR_MESSAGE, lstrlenW(ERROR_MESSAGE), &chars_written, NULL);
 #endif
-    TerminateProcess(GetCurrentProcess(), THE_NUMBER_OF_THE_BEAST);
+    TerminateProcess(GetCurrentProcess(), 1);
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
